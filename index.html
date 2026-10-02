@@ -14,9 +14,9 @@
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #777; }
 
-        /* Background Logo Besar */
+        /* Background Logo Besar - FIXED di tengah viewport */
         .bg-logo-overlay {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -169,7 +169,6 @@
     <!-- NAVBAR -->
     <nav class="bg-gray-800 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center z-50 relative">
         <div class="flex items-center space-x-3">
-            <!-- Tombol Hamburger (Hanya di HP) -->
             <button id="btn-hamburger" onclick="toggleSidebar()" class="md:hidden bg-gray-700 hover:bg-gray-600 p-2 rounded text-xl leading-none">☰</button>
             
             <div class="flex items-center space-x-2 md:space-x-3 cursor-pointer" onclick="showLandingPage()">
@@ -188,7 +187,6 @@
 
     <!-- LANDING PAGE -->
     <div id="landing-page" class="flex-1 p-4 md:p-8 overflow-y-auto relative">
-        <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
         <div class="max-w-5xl mx-auto relative z-10">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h2 class="text-xl md:text-2xl font-bold">Turnamen Aktif</h2>
@@ -208,12 +206,9 @@
     <!-- BRACKET VIEW PAGE -->
     <div id="bracket-page" class="flex-1 flex hidden h-full overflow-hidden">
 
-        <!-- Overlay untuk menutup sidebar di HP -->
         <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-        <!-- SIDEBAR (Jadi Drawer di HP) -->
         <div id="sidebar" class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto z-40 md:z-40">
-            <!-- Tombol Close Sidebar (Hanya di HP) -->
             <div class="md:hidden flex justify-end p-2 border-b border-gray-700">
                 <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-2xl px-3">&times;</button>
             </div>
@@ -251,9 +246,7 @@
             </div>
         </div>
 
-        <!-- AREA BRACKET UTAMA -->
         <div class="flex-1 bg-gray-900 overflow-auto p-4 md:p-8 relative" id="bracket-canvas">
-            <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
             <div id="bracket-container" class="bracket-container min-w-max pt-8 relative z-10"></div>
         </div>
     </div>
@@ -303,6 +296,9 @@
         </div>
     </div>
 
+    <!-- LOGO BACKGROUND GLOBAL (Fixed di tengah layar) -->
+    <img id="global-bg-logo" src="logopmii.png" alt="" class="bg-logo-overlay hidden" onerror="this.style.display='none'">
+
     <script>
         // === KONFIGURASI FIREBASE ===
         const firebaseConfig = {
@@ -332,14 +328,19 @@
             sidebar.classList.toggle('open');
             overlay.classList.toggle('show');
         }
-        // Tutup sidebar otomatis saat pindah ke Home
         function closeSidebarIfMobile() {
             if (window.innerWidth <= 768) {
-                const sidebar = document.getElementById('sidebar');
-                const overlay = document.getElementById('sidebar-overlay');
-                sidebar.classList.remove('open');
-                overlay.classList.remove('show');
+                document.getElementById('sidebar').classList.remove('open');
+                document.getElementById('sidebar-overlay').classList.remove('show');
             }
+        }
+
+        // === LOGO BACKGROUND CONTROL ===
+        function showGlobalLogo() {
+            document.getElementById('global-bg-logo').classList.remove('hidden');
+        }
+        function hideGlobalLogo() {
+            document.getElementById('global-bg-logo').classList.add('hidden');
         }
 
         // === STATUS KONEKSI ===
@@ -428,6 +429,7 @@
 
         // === LANDING PAGE ===
         function renderLandingPage() {
+            showGlobalLogo();
             document.getElementById('landing-page').classList.remove('hidden');
             document.getElementById('bracket-page').classList.add('hidden');
             document.getElementById('nav-bracket-name').classList.add('hidden');
@@ -487,6 +489,7 @@
 
         // === BRACKET PAGE ===
         function openBracket(id) {
+            showGlobalLogo();
             currentBracketId = id;
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('bracket-page').classList.remove('hidden');
@@ -598,7 +601,7 @@
                 allMatches.push({
                     id: `m-${matchIdCounter++}`, round: 1,
                     team1: participants[i], team2: participants[i+1],
-                    score1: null, score2: null, winner: null
+                    score1: '-', score2: '-', winner: null
                 });
             }
 
@@ -607,7 +610,7 @@
                 for (let i = 0; i < matchesInRound; i++) {
                     allMatches.push({
                         id: `m-${matchIdCounter++}`, round: r,
-                        team1: null, team2: null, score1: null, score2: null, winner: null
+                        team1: null, team2: null, score1: '-', score2: '-', winner: null
                     });
                 }
             }
@@ -661,8 +664,8 @@
 
             const team1Name = match.team1 ? match.team1.name : 'TBD';
             const team2Name = match.team2 ? match.team2.name : 'TBD';
-            const score1 = match.score1 !== null ? match.score1 : '-';
-            const score2 = match.score2 !== null ? match.score2 : '-';
+            const score1 = (match.score1 !== null && match.score1 !== undefined && match.score1 !== '') ? match.score1 : '-';
+            const score2 = (match.score2 !== null && match.score2 !== undefined && match.score2 !== '') ? match.score2 : '-';
 
             const canClick = isAdmin && !match.winner && match.team1 && match.team2 && match.team1.name !== 'BYE' && match.team2.name !== 'BYE';
 
@@ -704,8 +707,8 @@
 
             document.getElementById('modal-team1-name').textContent = match.team1.name;
             document.getElementById('modal-team2-name').textContent = match.team2.name;
-            document.getElementById('modal-team1-score').value = match.score1 || 0;
-            document.getElementById('modal-team2-score').value = match.score2 || 0;
+            document.getElementById('modal-team1-score').value = (typeof match.score1 === 'number') ? match.score1 : 0;
+            document.getElementById('modal-team2-score').value = (typeof match.score2 === 'number') ? match.score2 : 0;
             document.getElementById('score-modal').classList.remove('hidden');
         }
 
@@ -746,6 +749,7 @@
 
         // === UTILS ===
         function showLandingPage() {
+            hideGlobalLogo();
             currentBracketId = null;
             renderLandingPage();
         }
