@@ -104,6 +104,7 @@
             <span id="nav-bracket-name" class="text-gray-400 hidden border-l border-gray-600 pl-3 md:pl-4 text-sm md:text-base truncate max-w-[150px]"></span>
         </div>
         <div class="flex items-center space-x-2 md:space-x-4">
+            <button id="btn-data-peserta" onclick="window.location.href='peserta.html'" class="bg-purple-600 hover:bg-purple-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm font-bold hidden">👥 Data Peserta</button>
             <button id="btn-login" onclick="openLoginModal()" class="bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm font-bold">Login Admin</button>
             <span id="admin-status" class="text-xs md:text-sm text-green-400 font-bold hidden">Admin Mode</span>
             <button id="btn-logout" onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm hidden">Logout</button>
@@ -350,12 +351,16 @@
         function closeLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
         function verifyAdminLogin() {
             if (document.getElementById('admin-password-input').value === ADMIN_PASSWORD) {
-                isAdmin = true; closeLoginModal(); updateAdminUI();
+                isAdmin = true; 
+                localStorage.setItem('pmii_isAdmin', 'true'); // ← SIMPAN
+                closeLoginModal(); updateAdminUI();
                 if (currentBracketId) renderBracketPage();
             } else { alert("Password salah!"); }
         }
         function logoutAdmin() {
-            isAdmin = false; updateAdminUI();
+            isAdmin = false;
+            localStorage.removeItem('pmii_isAdmin'); // ← HAPUS
+            updateAdminUI();
             if (currentBracketId) renderBracketPage();
         }
         function updateAdminUI() {
@@ -364,6 +369,7 @@
             document.getElementById('admin-status').classList.toggle('hidden', !isAdmin);
             document.getElementById('btn-add-bracket').classList.toggle('hidden', !isAdmin);
             document.getElementById('btn-delete-all').classList.toggle('hidden', !isAdmin);
+            document.getElementById('btn-data-peserta').classList.toggle('hidden', !isAdmin);
         }
 
         // === LANDING PAGE ===
@@ -438,6 +444,35 @@
             
             saveData();
             renderBracketPage();
+        }
+
+        // Fungsi untuk auto-create bracket dari data peserta.html
+        function autoCreateBracketFromData(data) {
+            const newBracket = {
+                id: Date.now().toString(),
+                name: data.bracketName || "Turnamen Baru",
+                type: "Single Elimination",
+                status: "Pending",
+                category: data.category || null,
+                participants: data.participants || [],
+                matches: []
+            };
+            brackets.push(newBracket);
+            
+            // Buka bracket langsung
+            currentBracketId = newBracket.id;
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('bracket-page').classList.remove('hidden');
+            document.getElementById('btn-back').classList.remove('hidden');
+            showGlobalLogo();
+            
+            renderBracketPage();
+            saveData();
+            
+            // Tampilkan notifikasi
+            setTimeout(() => {
+                alert(`✅ Bracket "${newBracket.name}" berhasil dibuat dengan ${newBracket.participants.length} peserta.\n\nKlik "START TOURNAMENT" untuk memulai.`);
+            }, 500);
         }
 
         // === BRACKET PAGE ===
@@ -718,7 +753,25 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Cek status login dari localStorage
+            if (localStorage.getItem('pmii_isAdmin') === 'true') {
+                isAdmin = true;
+            }
             updateAdminUI();
+            
+            // Cek apakah ada permintaan buat bracket dari halaman peserta
+            const autoCreate = localStorage.getItem('pmii_autoCreateBracket');
+            if (autoCreate) {
+                localStorage.removeItem('pmii_autoCreateBracket');
+                try {
+                    const data = JSON.parse(autoCreate);
+                    if (isAdmin) {
+                        autoCreateBracketFromData(data);
+                    }
+                } catch (e) {
+                    console.error("Gagal parse auto-create bracket:", e);
+                }
+            }
         });
     </script>
 </body>
