@@ -14,23 +14,14 @@
         ::-webkit-scrollbar-thumb:hover { background: #777; }
 
         .bg-logo-overlay {
-            position: fixed;
-            top: 50%;
-            left: 50%;
+            position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 70vh;
-            height: 70vh;
-            opacity: 0.5;
-            pointer-events: none;
-            z-index: 0;
-            object-fit: contain;
-            user-select: none;
+            width: 70vh; height: 70vh;
+            opacity: 0.5; pointer-events: none; z-index: 0;
+            object-fit: contain; user-select: none;
         }
         @media (max-width: 768px) {
-            .bg-logo-overlay {
-                width: 90vw;
-                height: 90vw;
-            }
+            .bg-logo-overlay { width: 90vw; height: 90vw; }
         }
 
         .bracket-container { display: flex; flex-direction: row; padding: 20px; }
@@ -103,7 +94,6 @@
 
     <div id="connection-status" class="status-disconnected">● Menghubungkan...</div>
 
-    <!-- NAVBAR -->
     <nav class="bg-gray-800 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center z-50 relative">
         <div class="flex items-center space-x-3">
             <button id="btn-hamburger" onclick="toggleSidebar()" class="md:hidden bg-gray-700 hover:bg-gray-600 p-2 rounded text-xl leading-none">☰</button>
@@ -220,7 +210,6 @@
     <img id="global-bg-logo" src="logopmii.png" alt="" class="bg-logo-overlay hidden" onerror="this.style.display='none'">
 
     <script>
-        // === KONFIGURASI FIREBASE ===
         const firebaseConfig = {
             apiKey: "AIzaSyAhijrUPWJv3efN4BZecIDkvhaA5C4J4H8",
             authDomain: "pmii-funbadminton.firebaseapp.com",
@@ -240,11 +229,24 @@
         let currentBracketId = null;
         let isAdmin = false;
         let currentMatch = null;
+        let isSaving = false;
+        let isFirstLoad = true; // Flag untuk load pertama
 
         // ============================================================
-        // 🔧 FIX #1: FLAG UNTUK MENCEGAH LISTENER MENIMPA DATA SAAT SAVE
+        // FUNGSI RENDER UTAMA (DIPANGGIL OLEH LISTENER ATAU MANUAL)
         // ============================================================
-        let isSaving = false;
+        function refreshUI() {
+            if (currentBracketId) {
+                const stillExists = brackets.find(b => b.id === currentBracketId);
+                if (stillExists) {
+                    renderBracketPage();
+                } else {
+                    showLandingPage();
+                }
+            } else {
+                renderLandingPage();
+            }
+        }
 
         // === SIDEBAR TOGGLE ===
         function toggleSidebar() {
@@ -260,11 +262,9 @@
             }
         }
 
-        // === LOGO BACKGROUND ===
         function showGlobalLogo() { document.getElementById('global-bg-logo').classList.remove('hidden'); }
         function hideGlobalLogo() { document.getElementById('global-bg-logo').classList.add('hidden'); }
 
-        // === STATUS KONEKSI ===
         function updateConnectionStatus(status) {
             const el = document.getElementById('connection-status');
             el.className = '';
@@ -286,54 +286,59 @@
         });
 
         // ============================================================
-        // 🔧 FIX #2: LISTENER TIDAK MENIMPA DATA SAAT SEDANG SAVE
+        // LISTENER FIREBASE - HANYA RENDER ULANG, TIDAK MENIMPA SAAT SAVING
         // ============================================================
         bracketsRef.on('value', (snapshot) => {
-            // Jika sedang save, jangan timpa data lokal
+            // Saat sedang save, JANGAN update data dari listener
             if (isSaving) {
-                console.log("⏸ Listener diabaikan karena sedang save data");
+                console.log("⏸ Listener diabaikan (sedang save)");
                 return;
             }
 
             const data = snapshot.val();
             brackets = data ? Object.values(data) : [];
-            console.log("📥 Data diterima dari Firebase:", brackets.length, "bracket");
+            console.log("📥 Data dari Firebase:", brackets.length, "bracket");
 
-            if (currentBracketId) {
-                const stillExists = brackets.find(b => b.id === currentBracketId);
-                if (stillExists) {
-                    renderBracketPage();
-                } else {
-                    showLandingPage();
-                }
-            } else {
-                renderLandingPage();
-            }
+            // Render ulang UI
+            refreshUI();
         }, (error) => {
             console.error("Firebase error:", error);
             updateConnectionStatus('disconnected');
         });
 
         // ============================================================
-        // 🔧 FIX #3: SAVEDATA YANG BENAR DENGAN FLAG
+        // SAVE DATA DENGAN RENDER MANUAL SETELAH SELESAI
         // ============================================================
         async function saveData() {
-            isSaving = true;  // Set flag SEBELUM kirim
+            isSaving = true;
             updateConnectionStatus('saving');
+            
             try {
                 const dataToSave = {};
-                brackets.forEach(b => { dataToSave[b.id] = JSON.parse(JSON.stringify(b)); }); // Deep clone
-                console.log("📤 Mengirim data ke Firebase:", dataToSave);
+                brackets.forEach(b => { 
+                    dataToSave[b.id] = JSON.parse(JSON.stringify(b)); 
+                });
+                
+                console.log("📤 Mengirim ke Firebase...");
                 await bracketsRef.set(dataToSave);
+                console.log("✅ Berhasil tersimpan");
                 updateConnectionStatus('connected');
-                console.log("✅ Data berhasil tersimpan");
+                
+                // *** KUNCI PERBAIKAN ***
+                // Render UI manual SETELAH data tersimpan
+                // Jangan tunggu listener Firebase
+                refreshUI();
+                
             } catch (err) {
                 console.error("❌ Gagal simpan:", err);
                 alert("Gagal menyimpan data ke server!");
                 updateConnectionStatus('disconnected');
             } finally {
-                // Release flag setelah jeda kecil untuk memberi waktu listener settle
-                setTimeout(() => { isSaving = false; }, 500);
+                // Lepas flag setelah jeda
+                setTimeout(() => { 
+                    isSaving = false; 
+                    console.log("🔓 Flag saving dilepas");
+                }, 800);
             }
         }
 
@@ -414,10 +419,25 @@
 
         function createNewBracket() {
             if (!isAdmin) return;
-            const newBracket = { id: Date.now().toString(), name: "Turnamen Baru " + (brackets.length + 1), type: "Single Elimination", status: "Pending", participants: [], matches: [] };
+            const newBracket = { 
+                id: Date.now().toString(), 
+                name: "Turnamen Baru " + (brackets.length + 1), 
+                type: "Single Elimination", 
+                status: "Pending", 
+                participants: [], 
+                matches: [] 
+            };
             brackets.push(newBracket);
+            
+            // Buka bracket baru dulu, baru save
+            currentBracketId = newBracket.id;
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('bracket-page').classList.remove('hidden');
+            document.getElementById('btn-back').classList.remove('hidden');
+            showGlobalLogo();
+            
             saveData();
-            openBracket(newBracket.id);
+            renderBracketPage();
         }
 
         // === BRACKET PAGE ===
@@ -551,7 +571,6 @@
             processByesFixed(bracket);
         }
 
-        // === RENDER BRACKET VISUAL ===
         function renderBracketVisual(bracket) {
             const container = document.getElementById('bracket-container');
             container.innerHTML = '';
@@ -628,7 +647,7 @@
             }
         }
 
-        // === SCORE MODAL LOGIC ===
+        // === SCORE MODAL ===
         function openScoreModal(matchId) {
             if (!isAdmin) return;
             const bracket = brackets.find(b => b.id === currentBracketId);
@@ -649,42 +668,23 @@
             input.value = Math.max(0, (parseInt(input.value) || 0) + amount);
         }
 
-        // ============================================================
-        // 🔧 FIX #4: SUBMIT SCORE DENGAN LOG DETAIL
-        // ============================================================
         function submitScore() {
             if (!currentMatch) return;
             const s1 = parseInt(document.getElementById('modal-team1-score').value) || 0;
             const s2 = parseInt(document.getElementById('modal-team2-score').value) || 0;
             if (s1 === s2) return alert("Skor tidak boleh seri!");
 
-            const matchId = currentMatch.id;
             const winnerId = s1 > s2 ? currentMatch.team1.id : currentMatch.team2.id;
             const winnerName = s1 > s2 ? currentMatch.team1.name : currentMatch.team2.name;
 
-            console.log(`🎯 Submit skor untuk match ${matchId}: ${s1} - ${s2}`);
-            console.log(`🏆 Pemenang: ${winnerName} (${winnerId})`);
+            console.log(`🎯 Match ${currentMatch.id}: ${s1} - ${s2} → Pemenang: ${winnerName}`);
 
-            // Update skor & winner di currentMatch
             currentMatch.score1 = s1;
             currentMatch.score2 = s2;
             currentMatch.winner = winnerId;
 
-            // Pindahkan pemenang ke ronde berikutnya
-            const advanced = advanceWinnerFixed(currentMatch);
-            console.log(`➡️ Berhasil advance: ${advanced}`);
-
-            // Debug: cetak semua match setelah advance
-            const bracket = brackets.find(b => b.id === currentBracketId);
-            console.log("📋 Status semua match setelah advance:");
-            bracket.matches.forEach(m => {
-                console.log(`  Round ${m.round} - ${m.id}: ${m.team1?.name || 'TBD'} vs ${m.team2?.name || 'TBD'} | Winner: ${m.winner || '-'}`);
-            });
-
-            // Tutup modal dulu
+            advanceWinnerFixed(currentMatch);
             closeModal();
-
-            // Simpan ke Firebase
             saveData();
         }
 
@@ -695,26 +695,17 @@
             const nextRound = match.round + 1;
             const winnerTeam = match.winner === match.team1.id ? match.team1 : match.team2;
 
-            // Cari match di ronde berikutnya yang masih kosong (TBD)
             let nextMatch = bracket.matches.find(m => m.round === nextRound && (m.team1 === null || m.team2 === null));
-            if (!nextMatch) {
-                console.log(`⚠️ Tidak ada slot kosong di ronde ${nextRound}`);
-                return false;
-            }
+            if (!nextMatch) return false;
 
-            // Cegah duplikasi
-            if (nextMatch.team1?.id === winnerTeam.id || nextMatch.team2?.id === winnerTeam.id) {
-                console.log(`⚠️ ${winnerTeam.name} sudah ada di match ${nextMatch.id}`);
-                return false;
-            }
+            if (nextMatch.team1?.id === winnerTeam.id || nextMatch.team2?.id === winnerTeam.id) return false;
 
-            // Isi slot kosong
             if (!nextMatch.team1) {
                 nextMatch.team1 = { ...winnerTeam };
-                console.log(`✅ ${winnerTeam.name} → Round ${nextRound} slot 1 (match ${nextMatch.id})`);
+                console.log(`✅ ${winnerTeam.name} → Round ${nextRound} slot 1`);
             } else if (!nextMatch.team2) {
                 nextMatch.team2 = { ...winnerTeam };
-                console.log(`✅ ${winnerTeam.name} → Round ${nextRound} slot 2 (match ${nextMatch.id})`);
+                console.log(`✅ ${winnerTeam.name} → Round ${nextRound} slot 2`);
             }
             return true;
         }
