@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Peserta - PMII Fun Badminton</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+
+        .bg-logo-overlay {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vh; height: 70vh;
+            opacity: 0.15; pointer-events: none; z-index: 0;
+            object-fit: contain; user-select: none;
+        }
+        @media (max-width: 768px) {
+            .bg-logo-overlay { width: 90vw; height: 90vw; }
+        }
+
+        .tab-active {
+            background-color: #2563eb !important;
+            color: white !important;
+        }
+
+        .peserta-row { transition: all 0.15s; }
+        .peserta-row:hover { background-color: #374151; }
+
+        #connection-status {
+            position: fixed; bottom: 10px; left: 10px;
+            padding: 4px 10px; border-radius: 4px; font-size: 11px;
+            z-index: 100; transition: all 0.3s;
+        }
+        .status-connected { background: #065f46; color: #6ee7b7; }
+        .status-disconnected { background: #7f1d1d; color: #fca5a5; }
+        .status-saving { background: #78350f; color: #fcd34d; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+
+    <div id="connection-status" class="status-disconnected">● Menghubungkan...</div>
+
+    <!-- NAVBAR -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center z-50 relative">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 md:space-x-3 cursor-pointer" onclick="goBack()">
+                <img src="logopmiidipayuda.png" alt="Logo" class="h-8 w-8 object-contain" onerror="this.style.display='none'">
+                <h1 class="text-base md:text-xl font-bold leading-tight">PMII Fun<br class="md:hidden"> Badminton</h1>
+            </div>
+            <span class="text-gray-400 hidden border-l border-gray-600 pl-3 md:pl-4 text-sm md:text-base">Data Peserta</span>
+        </div>
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <button onclick="goBack()" class="bg-gray-600 hover:bg-gray-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm">← Kembali</button>
+            <button id="btn-login" onclick="openLoginModal()" class="bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm font-bold">Login Admin</button>
+            <span id="admin-status" class="text-xs md:text-sm text-green-400 font-bold hidden">Admin Mode</span>
+            <button id="btn-logout" onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm hidden">Logout</button>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
+        <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
+        
+        <div class="max-w-6xl mx-auto relative z-10">
+            <!-- Header -->
+            <div class="mb-6">
+                <h2 class="text-2xl md:text-3xl font-bold mb-2">📋 Data Peserta</h2>
+                <p class="text-gray-400 text-sm">Kelola daftar peserta per kategori. Data ini bisa dipakai untuk membuat bracket turnamen.</p>
+            </div>
+
+            <!-- Info Alert untuk Non-Admin -->
+            <div id="alert-readonly" class="bg-yellow-900/30 border border-yellow-700 text-yellow-200 px-4 py-3 rounded mb-6 text-sm">
+                👀 Anda dalam mode <b>View Only</b>. Login sebagai Admin untuk mengedit data peserta.
+            </div>
+
+            <!-- TABS KATEGORI -->
+            <div class="bg-gray-800 rounded-lg border border-gray-700 mb-6 overflow-hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4">
+                    <button onclick="switchTab('tunggal_putra')" id="tab-tunggal_putra" class="tab-btn py-3 px-4 text-sm md:text-base font-bold border-b-2 border-transparent hover:bg-gray-700 transition">
+                        🏸 Tunggal Putra
+                        <span class="block text-xs font-normal opacity-70 mt-1"><span id="count-tunggal_putra">0</span> peserta</span>
+                    </button>
+                    <button onclick="switchTab('tunggal_putri')" id="tab-tunggal_putri" class="tab-btn py-3 px-4 text-sm md:text-base font-bold border-b-2 border-transparent hover:bg-gray-700 transition">
+                        🏸 Tunggal Putri
+                        <span class="block text-xs font-normal opacity-70 mt-1"><span id="count-tunggal_putri">0</span> peserta</span>
+                    </button>
+                    <button onclick="switchTab('ganda_putra')" id="tab-ganda_putra" class="tab-btn py-3 px-4 text-sm md:text-base font-bold border-b-2 border-transparent hover:bg-gray-700 transition">
+                        🏸 Ganda Putra
+                        <span class="block text-xs font-normal opacity-70 mt-1"><span id="count-ganda_putra">0</span> tim</span>
+                    </button>
+                    <button onclick="switchTab('ganda_putri')" id="tab-ganda_putri" class="tab-btn py-3 px-4 text-sm md:text-base font-bold border-b-2 border-transparent hover:bg-gray-700 transition">
+                        🏸 Ganda Putri
+                        <span class="block text-xs font-normal opacity-70 mt-1"><span id="count-ganda_putri">0</span> tim</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PANEL INPUT (HANYA ADMIN) -->
+            <div id="input-panel" class="hidden bg-gray-800 rounded-lg border border-gray-700 p-4 md:p-6 mb-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
+                    <h3 class="font-bold text-lg">➕ Tambah Peserta ke <span id="current-category-label" class="text-blue-400">Tunggal Putra</span></h3>
+                    <div class="flex gap-2">
+                        <button onclick="toggleInputMode('bulk')" id="btn-mode-bulk" class="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold">Bulk Input</button>
+                        <button onclick="toggleInputMode('single')" id="btn-mode-single" class="bg-gray-700 text-white px-3 py-1 rounded text-xs font-bold">Satu per Satu</button>
+                    </div>
+                </div>
+
+                <!-- BULK MODE -->
+                <div id="input-mode-bulk">
+                    <p class="text-xs text-gray-400 mb-2">Tempel daftar nama (1 nama per baris):</p>
+                    <textarea id="bulk-input" rows="6" placeholder="...." class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 font-mono"></textarea>
+                    <div class="flex justify-between items-center mt-3">
+                        <span id="bulk-count" class="text-xs text-gray-400">0 baris terdeteksi</span>
+                        <button onclick="submitBulkInput()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-bold text-sm">Generate Peserta</button>
+                    </div>
+                </div>
+
+                <!-- SINGLE MODE -->
+                <div id="input-mode-single" class="hidden">
+                    <div id="single-tunggal">
+                        <p class="text-xs text-gray-400 mb-2">Masukkan nama peserta:</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="single-input-nama" placeholder="Nama peserta..." class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            <button onclick="submitSingleInput()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-bold text-sm">+ Tambah</button>
+                        </div>
+                    </div>
+
+                    <div id="single-ganda" class="hidden">
+                        <p class="text-xs text-gray-400 mb-2">Masukkan nama tim dan 2 pemain:</p>
+                        <div class="space-y-2">
+                            <input type="text" id="single-input-tim" placeholder="Nama Tim (misal: Tim Garuda)" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="single-input-pemain1" placeholder="Pemain 1" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                                <input type="text" id="single-input-pemain2" placeholder="Pemain 2" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            </div>
+                            <button onclick="submitSingleGanda()" class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-bold text-sm">+ Tambah Tim</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTION PANEL: BUAT BRACKET -->
+            <div id="action-panel" class="hidden bg-gradient-to-r from-green-900/40 to-emerald-900/40 border border-green-700 rounded-lg p-4 md:p-6 mb-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-lg text-green-300 mb-1">✅ Peserta Siap!</h3>
+                        <p class="text-sm text-gray-300">Kategori <b id="action-category-label">Tunggal Putra</b> memiliki <b id="action-count">0</b> peserta. Siap untuk dibuatkan bracket.</p>
+                    </div>
+                    <button onclick="createBracketFromCategory()" class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-bold text-white shadow-lg transition whitespace-nowrap">
+                        🏆 Buat Bracket Turnamen
+                    </button>
+                </div>
+            </div>
+
+            <!-- LIST PESERTA -->
+            <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 class="font-bold">📝 Daftar Peserta <span class="text-gray-400 text-sm font-normal">(<span id="list-count">0</span> total)</span></h3>
+                    <button id="btn-delete-all" onclick="deleteAllInCategory()" class="hidden bg-red-700 hover:bg-red-800 px-3 py-1 rounded text-xs font-bold">🗑️ Hapus Semua</button>
+                </div>
+                <div id="peserta-list" class="divide-y divide-gray-700"></div>
+                <div id="empty-state" class="p-12 text-center text-gray-500">
+                    <div class="text-5xl mb-3">📭</div>
+                    <p>Belum ada peserta di kategori ini.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL LOGIN ADMIN -->
+    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-80 max-w-full overflow-hidden border border-gray-600">
+            <div class="bg-gray-700 px-4 py-3 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Login Admin</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <input type="password" id="admin-password-input" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 mb-4 focus:outline-none focus:border-blue-500" placeholder="Password...">
+                <button onclick="verifyAdminLogin()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold">Masuk</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT PESERTA -->
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-96 max-w-full overflow-hidden border border-gray-600">
+            <div class="bg-gray-700 px-4 py-3 flex justify-between items-center">
+                <h3 class="font-bold">Edit Peserta</h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="edit-modal-body" class="p-4 space-y-3"></div>
+            <div class="p-4 bg-gray-750 border-t border-gray-700 flex gap-2">
+                <button onclick="closeEditModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded font-bold text-sm">Batal</button>
+                <button onclick="saveEditPeserta()" class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI BUAT BRACKET -->
+    <div id="create-bracket-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-96 max-w-full overflow-hidden border border-gray-600">
+            <div class="bg-gray-700 px-4 py-3 flex justify-between items-center">
+                <h3 class="font-bold">🏆 Buat Bracket Turnamen</h3>
+                <button onclick="closeCreateBracketModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-blue-900/30 border border-blue-700 rounded p-3 text-sm">
+                    <div class="text-blue-300 font-bold mb-1">Kategori:</div>
+                    <div id="modal-cat-label" class="text-white font-bold text-lg">Tunggal Putra</div>
+                    <div id="modal-cat-count" class="text-xs text-gray-400 mt-1">0 peserta</div>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Nama Turnamen</label>
+                    <input type="text" id="bracket-name-input" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500" placeholder="Misal: PMII Fun Badminton 2024">
+                </div>
+                <div class="text-xs text-gray-400 bg-gray-900 rounded p-3 border border-gray-700">
+                    💡 <b>Info:</b> Bracket akan dibuat dengan status <b>Pending</b>. Anda bisa mengubah nama peserta dan baru klik <b>"Start Tournament"</b> di halaman bracket.
+                </div>
+            </div>
+            <div class="p-4 bg-gray-750 border-t border-gray-700 flex gap-2">
+                <button onclick="closeCreateBracketModal()" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded font-bold text-sm">Batal</button>
+                <button onclick="confirmCreateBracket()" class="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded font-bold text-sm">Buat Bracket →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === KONFIGURASI FIREBASE ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhijrUPWJv3efN4BZecIDkvhaA5C4J4H8",
+            authDomain: "pmii-funbadminton.firebaseapp.com",
+            databaseURL: "https://pmii-funbadminton-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "pmii-funbadminton",
+            storageBucket: "pmii-funbadminton.firebasestorage.app",
+            messagingSenderId: "1032397843409",
+            appId: "1:1032397843409:web:966ecb7a79d19951298ef0"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const pesertaRef = db.ref('master_peserta');
+
+        const ADMIN_PASSWORD = "admin123";
+        const CATEGORIES = {
+            tunggal_putra: { label: 'Tunggal Putra', type: 'single' },
+            tunggal_putri: { label: 'Tunggal Putri', type: 'single' },
+            ganda_putra: { label: 'Ganda Putra', type: 'double' },
+            ganda_putri: { label: 'Ganda Putri', type: 'double' }
+        };
+
+        let isAdmin = false;
+        let currentCategory = 'tunggal_putra';
+        let inputMode = 'bulk';
+        let masterPeserta = {
+            tunggal_putra: [],
+            tunggal_putri: [],
+            ganda_putra: [],
+            ganda_putri: []
+        };
+        let editingPesertaId = null;
+        let isSaving = false;
+
+        // === GO BACK (Fix Bug Logout) ===
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+
+        // === STATUS KONEKSI ===
+        function updateConnectionStatus(status) {
+            const el = document.getElementById('connection-status');
+            el.className = '';
+            if (status === 'connected') {
+                el.classList.add('status-connected');
+                el.textContent = '● Terhubung ke Server';
+            } else if (status === 'saving') {
+                el.classList.add('status-saving');
+                el.textContent = '● Menyimpan...';
+            } else {
+                el.classList.add('status-disconnected');
+                el.textContent = '● Terputus dari Server';
+            }
+        }
+
+        db.ref('.info/connected').on('value', (snap) => {
+            updateConnectionStatus(snap.val() === true ? 'connected' : 'disconnected');
+        });
+
+        // === LOAD DATA ===
+        pesertaRef.on('value', (snapshot) => {
+            if (isSaving) return;
+            const data = snapshot.val();
+            if (data) {
+                masterPeserta = {
+                    tunggal_putra: data.tunggal_putra ? Object.values(data.tunggal_putra) : [],
+                    tunggal_putri: data.tunggal_putri ? Object.values(data.tunggal_putri) : [],
+                    ganda_putra: data.ganda_putra ? Object.values(data.ganda_putra) : [],
+                    ganda_putri: data.ganda_putri ? Object.values(data.ganda_putri) : []
+                };
+            } else {
+                masterPeserta = { tunggal_putra: [], tunggal_putri: [], ganda_putra: [], ganda_putri: [] };
+            }
+            renderAll();
+        }, (error) => {
+            console.error("Firebase error:", error);
+            updateConnectionStatus('disconnected');
+        });
+
+        // === SIMPAN ===
+        async function saveData() {
+            isSaving = true;
+            updateConnectionStatus('saving');
+            try {
+                const dataToSave = {};
+                Object.keys(masterPeserta).forEach(cat => {
+                    dataToSave[cat] = {};
+                    masterPeserta[cat].forEach(p => {
+                        dataToSave[cat][p.id] = JSON.parse(JSON.stringify(p));
+                    });
+                });
+                await pesertaRef.set(dataToSave);
+                updateConnectionStatus('connected');
+                renderAll();
+            } catch (err) {
+                console.error("❌ Gagal simpan:", err);
+                alert("Gagal menyimpan!");
+                updateConnectionStatus('disconnected');
+            } finally {
+                setTimeout(() => { isSaving = false; }, 500);
+            }
+        }
+
+        // === ADMIN LOGIC ===
+        function openLoginModal() {
+            document.getElementById('admin-password-input').value = '';
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+        function closeLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
+        function verifyAdminLogin() {
+            if (document.getElementById('admin-password-input').value === ADMIN_PASSWORD) {
+                isAdmin = true;
+                localStorage.setItem('pmii_isAdmin', 'true');
+                closeLoginModal(); updateAdminUI(); renderAll();
+            } else { alert("Password salah!"); }
+        }
+        function logoutAdmin() {
+            isAdmin = false;
+            localStorage.removeItem('pmii_isAdmin');
+            updateAdminUI(); renderAll();
+        }
+        function updateAdminUI() {
+            document.getElementById('btn-login').classList.toggle('hidden', isAdmin);
+            document.getElementById('btn-logout').classList.toggle('hidden', !isAdmin);
+            document.getElementById('admin-status').classList.toggle('hidden', !isAdmin);
+            document.getElementById('input-panel').classList.toggle('hidden', !isAdmin);
+            document.getElementById('alert-readonly').classList.toggle('hidden', isAdmin);
+            document.getElementById('btn-delete-all').classList.toggle('hidden', !isAdmin);
+            // Action panel (buat bracket) - hanya admin & jika peserta >= 2
+            updateActionPanel();
+        }
+
+        // === ACTION PANEL (BUAT BRACKET) ===
+        function updateActionPanel() {
+            const panel = document.getElementById('action-panel');
+            const count = masterPeserta[currentCategory] ? masterPeserta[currentCategory].length : 0;
+            const canCreate = isAdmin && count >= 2;
+            
+            panel.classList.toggle('hidden', !canCreate);
+            
+            if (canCreate) {
+                document.getElementById('action-category-label').textContent = CATEGORIES[currentCategory].label;
+                document.getElementById('action-count').textContent = count;
+            }
+        }
+
+        // === TAB SWITCHING ===
+        function switchTab(category) {
+            currentCategory = category;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('border-transparent');
+            });
+            const activeBtn = document.getElementById('tab-' + category);
+            activeBtn.classList.add('tab-active');
+            activeBtn.classList.remove('border-transparent');
+
+            document.getElementById('current-category-label').textContent = CATEGORIES[category].label;
+
+            const isGanda = CATEGORIES[category].type === 'double';
+            document.getElementById('single-tunggal').classList.toggle('hidden', isGanda);
+            document.getElementById('single-ganda').classList.toggle('hidden', !isGanda);
+
+            document.getElementById('bulk-input').value = '';
+            document.getElementById('bulk-count').textContent = '0 baris terdeteksi';
+            document.getElementById('single-input-nama').value = '';
+            document.getElementById('single-input-tim').value = '';
+            document.getElementById('single-input-pemain1').value = '';
+            document.getElementById('single-input-pemain2').value = '';
+
+            renderAll();
+        }
+
+        function toggleInputMode(mode) {
+            inputMode = mode;
+            const btnBulk = document.getElementById('btn-mode-bulk');
+            const btnSingle = document.getElementById('btn-mode-single');
+
+            if (mode === 'bulk') {
+                btnBulk.className = 'bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold';
+                btnSingle.className = 'bg-gray-700 text-white px-3 py-1 rounded text-xs font-bold';
+                document.getElementById('input-mode-bulk').classList.remove('hidden');
+                document.getElementById('input-mode-single').classList.add('hidden');
+            } else {
+                btnSingle.className = 'bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold';
+                btnBulk.className = 'bg-gray-700 text-white px-3 py-1 rounded text-xs font-bold';
+                document.getElementById('input-mode-single').classList.remove('hidden');
+                document.getElementById('input-mode-bulk').classList.add('hidden');
+            }
+        }
+
+        // === RENDER ===
+        function renderAll() {
+            Object.keys(CATEGORIES).forEach(cat => {
+                const count = masterPeserta[cat] ? masterPeserta[cat].length : 0;
+                document.getElementById('count-' + cat).textContent = count;
+            });
+            renderPesertaList();
+            updateActionPanel();
+        }
+
+        function renderPesertaList() {
+            const list = masterPeserta[currentCategory] || [];
+            const container = document.getElementById('peserta-list');
+            const emptyState = document.getElementById('empty-state');
+            document.getElementById('list-count').textContent = list.length;
+
+            if (list.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            const sorted = [...list].sort((a, b) => (a.nama || a.tim || '').localeCompare(b.nama || b.tim || ''));
+
+            container.innerHTML = sorted.map((p, idx) => {
+                const isGanda = CATEGORIES[currentCategory].type === 'double';
+                let mainText = '', subText = '';
+
+                if (isGanda) {
+                    mainText = p.tim || '(Tanpa Nama Tim)';
+                    subText = `${p.pemain1 || '?'} & ${p.pemain2 || '?'}`;
+                } else {
+                    mainText = p.nama || '(Tanpa Nama)';
+                }
+
+                return `
+                    <div class="peserta-row px-4 py-3 flex items-center justify-between group">
+                        <div class="flex items-center space-x-3 flex-1 min-w-0">
+                            <span class="bg-gray-700 text-gray-300 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">${idx + 1}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-white truncate">${escapeHtml(mainText)}</div>
+                                ${subText ? `<div class="text-xs text-gray-400 truncate">${escapeHtml(subText)}</div>` : ''}
+                            </div>
+                        </div>
+                        ${isAdmin ? `
+                            <div class="flex items-center space-x-2 md:opacity-0 md:group-hover:opacity-100 transition">
+                                <button onclick="openEditModal('${p.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 md:px-3 py-1 rounded text-xs font-bold">✏️</button>
+                                <button onclick="deletePeserta('${p.id}')" class="bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1 rounded text-xs font-bold">🗑️</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[m]);
+        }
+
+        // === BULK INPUT ===
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cek status login dari localStorage
+            if (localStorage.getItem('pmii_isAdmin') === 'true') {
+                isAdmin = true;
+            }
+
+            document.getElementById('bulk-input').addEventListener('input', (e) => {
+                const lines = e.target.value.split('\n').filter(l => l.trim());
+                document.getElementById('bulk-count').textContent = `${lines.length} baris terdeteksi`;
+            });
+
+            updateAdminUI();
+            switchTab('tunggal_putra');
+        });
+
+        function submitBulkInput() {
+            if (!isAdmin) return;
+            const text = document.getElementById('bulk-input').value;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            if (lines.length === 0) return alert("Tidak ada nama yang terdeteksi!");
+
+            const isGanda = CATEGORIES[currentCategory].type === 'double';
+            let added = 0;
+
+            lines.forEach(line => {
+                const id = 'p-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+                if (isGanda) {
+                    const parts = line.split('|').map(p => p.trim());
+                    if (parts.length >= 3) {
+                        masterPeserta[currentCategory].push({ id, tim: parts[0], pemain1: parts[1], pemain2: parts[2] });
+                    } else {
+                        const andParts = line.split('&').map(p => p.trim());
+                        if (andParts.length === 2) {
+                            masterPeserta[currentCategory].push({ id, tim: `Tim ${parts[0]}`, pemain1: andParts[0], pemain2: andParts[1] });
+                        } else {
+                            masterPeserta[currentCategory].push({ id, tim: line, pemain1: '', pemain2: '' });
+                        }
+                    }
+                } else {
+                    masterPeserta[currentCategory].push({ id, nama: line });
+                }
+                added++;
+            });
+
+            document.getElementById('bulk-input').value = '';
+            document.getElementById('bulk-count').textContent = '0 baris terdeteksi';
+            saveData();
+            alert(`✅ ${added} peserta berhasil ditambahkan!`);
+        }
+
+        // === SINGLE INPUT ===
+        function submitSingleInput() {
+            if (!isAdmin) return;
+            const nama = document.getElementById('single-input-nama').value.trim();
+            if (!nama) return alert("Nama tidak boleh kosong!");
+            const id = 'p-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+            masterPeserta[currentCategory].push({ id, nama });
+            document.getElementById('single-input-nama').value = '';
+            saveData();
+        }
+
+        function submitSingleGanda() {
+            if (!isAdmin) return;
+            const tim = document.getElementById('single-input-tim').value.trim();
+            const pemain1 = document.getElementById('single-input-pemain1').value.trim();
+            const pemain2 = document.getElementById('single-input-pemain2').value.trim();
+            if (!tim || !pemain1 || !pemain2) return alert("Semua field harus diisi!");
+
+            const id = 'p-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+            masterPeserta[currentCategory].push({ id, tim, pemain1, pemain2 });
+            document.getElementById('single-input-tim').value = '';
+            document.getElementById('single-input-pemain1').value = '';
+            document.getElementById('single-input-pemain2').value = '';
+            saveData();
+        }
+
+        // === EDIT ===
+        function openEditModal(id) {
+            if (!isAdmin) return;
+            const peserta = masterPeserta[currentCategory].find(p => p.id === id);
+            if (!peserta) return;
+            editingPesertaId = id;
+
+            const isGanda = CATEGORIES[currentCategory].type === 'double';
+            const body = document.getElementById('edit-modal-body');
+
+            if (isGanda) {
+                body.innerHTML = `
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Nama Tim</label>
+                        <input type="text" id="edit-tim" value="${escapeHtml(peserta.tim || '')}" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Pemain 1</label>
+                        <input type="text" id="edit-pemain1" value="${escapeHtml(peserta.pemain1 || '')}" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Pemain 2</label>
+                        <input type="text" id="edit-pemain2" value="${escapeHtml(peserta.pemain2 || '')}" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                `;
+            } else {
+                body.innerHTML = `
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Nama Peserta</label>
+                        <input type="text" id="edit-nama" value="${escapeHtml(peserta.nama || '')}" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                `;
+            }
+
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+            editingPesertaId = null;
+        }
+
+        function saveEditPeserta() {
+            if (!editingPesertaId) return;
+            const peserta = masterPeserta[currentCategory].find(p => p.id === editingPesertaId);
+            if (!peserta) return;
+
+            const isGanda = CATEGORIES[currentCategory].type === 'double';
+            if (isGanda) {
+                const tim = document.getElementById('edit-tim').value.trim();
+                const pemain1 = document.getElementById('edit-pemain1').value.trim();
+                const pemain2 = document.getElementById('edit-pemain2').value.trim();
+                if (!tim || !pemain1 || !pemain2) return alert("Semua field harus diisi!");
+                peserta.tim = tim;
+                peserta.pemain1 = pemain1;
+                peserta.pemain2 = pemain2;
+            } else {
+                const nama = document.getElementById('edit-nama').value.trim();
+                if (!nama) return alert("Nama tidak boleh kosong!");
+                peserta.nama = nama;
+            }
+
+            closeEditModal();
+            saveData();
+        }
+
+        // === HAPUS ===
+        function deletePeserta(id) {
+            if (!isAdmin) return;
+            const peserta = masterPeserta[currentCategory].find(p => p.id === id);
+            if (!peserta) return;
+            const displayName = peserta.nama || peserta.tim || '(Tanpa Nama)';
+            if (!confirm(`Hapus "${displayName}"?`)) return;
+            masterPeserta[currentCategory] = masterPeserta[currentCategory].filter(p => p.id !== id);
+            saveData();
+        }
+
+        function deleteAllInCategory() {
+            if (!isAdmin) return;
+            const count = masterPeserta[currentCategory].length;
+            if (count === 0) return alert("Tidak ada peserta untuk dihapus.");
+            if (!confirm(`⚠️ Hapus SEMUA ${count} peserta di kategori ${CATEGORIES[currentCategory].label}?`)) return;
+            if (!confirm("Konfirmasi terakhir?")) return;
+            masterPeserta[currentCategory] = [];
+            saveData();
+        }
+
+        // === BUAT BRACKET ===
+        function createBracketFromCategory() {
+            if (!isAdmin) return;
+            const count = masterPeserta[currentCategory].length;
+            if (count < 2) return alert("Minimal 2 peserta untuk membuat bracket!");
+
+            // Isi modal
+            document.getElementById('modal-cat-label').textContent = CATEGORIES[currentCategory].label;
+            document.getElementById('modal-cat-count').textContent = `${count} peserta siap`;
+            
+            // Nama default bracket
+            const defaultName = `${CATEGORIES[currentCategory].label} - ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+            document.getElementById('bracket-name-input').value = defaultName;
+
+            document.getElementById('create-bracket-modal').classList.remove('hidden');
+        }
+
+        function closeCreateBracketModal() {
+            document.getElementById('create-bracket-modal').classList.add('hidden');
+        }
+
+        function confirmCreateBracket() {
+            const bracketName = document.getElementById('bracket-name-input').value.trim() || 'Turnamen Baru';
+            
+            // Ambil peserta dari kategori aktif
+            const pesertaList = masterPeserta[currentCategory].map(p => {
+                const isGanda = CATEGORIES[currentCategory].type === 'double';
+                let displayName;
+                if (isGanda) {
+                    // Untuk ganda, tampilkan nama tim
+                    displayName = p.tim || `${p.pemain1} & ${p.pemain2}`;
+                } else {
+                    displayName = p.nama;
+                }
+                return {
+                    id: p.id,
+                    name: displayName,
+                    // Simpan detail lengkap untuk referensi
+                    detail: p
+                };
+            });
+
+            // Simpan ke localStorage untuk dibaca oleh index.html
+            const bracketData = {
+                bracketName: bracketName,
+                category: currentCategory,
+                categoryLabel: CATEGORIES[currentCategory].label,
+                participants: pesertaList,
+                createdAt: Date.now()
+            };
+
+            localStorage.setItem('pmii_autoCreateBracket', JSON.stringify(bracketData));
+
+            // Pindah ke index.html
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
