@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PMII Fun Badminton</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1e1e1e; }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #777; }
 
-        /* --- CSS BACKGROUND LOGO --- */
         .bg-logo-overlay {
             position: absolute;
             top: 50%;
@@ -26,7 +28,6 @@
             user-select: none;
         }
 
-        /* --- CSS BRACKET VISUAL PATEN --- */
         .bracket-container {
             display: flex;
             flex-direction: row;
@@ -49,7 +50,6 @@
             margin: 10px 0;
         }
 
-        /* Garis kurung siku ] untuk pasangan match */
         .match-pair::after {
             content: '';
             position: absolute;
@@ -63,7 +63,6 @@
             border-right: 2px solid #555;
         }
 
-        /* Garis horizontal dari match ke kurung siku */
         .match-pair .match-box::after {
             content: '';
             position: absolute;
@@ -74,7 +73,6 @@
             background-color: #555;
         }
 
-        /* Garis horizontal dari kurung siku ke match berikutnya */
         .bracket-column:not(:last-child)::after {
             content: '';
             position: absolute;
@@ -85,13 +83,8 @@
             background-color: #555;
         }
 
-        /* Jika hanya 1 match di kolom (misal Final), jangan gambar kurung siku */
-        .bracket-column.single-match .match-pair::after {
-            display: none;
-        }
-        .bracket-column.single-match .match-box::after {
-            display: none;
-        }
+        .bracket-column.single-match .match-pair::after { display: none; }
+        .bracket-column.single-match .match-box::after { display: none; }
 
         .match-box {
             background: #374151;
@@ -104,9 +97,7 @@
             transition: all 0.2s;
         }
 
-        .match-box:hover {
-            border-color: #60a5fa;
-        }
+        .match-box:hover { border-color: #60a5fa; }
 
         .team-slot {
             display: flex;
@@ -116,24 +107,40 @@
             font-size: 14px;
         }
 
-        .team-slot:first-child {
-            border-bottom: 1px solid #4b5563;
-        }
+        .team-slot:first-child { border-bottom: 1px solid #4b5563; }
 
         .winner-slot {
             background-color: rgba(16, 185, 129, 0.2);
             color: #34d399;
             font-weight: bold;
         }
+
+        /* Status Indicator */
+        #connection-status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        .status-connected { background: #065f46; color: #6ee7b7; }
+        .status-disconnected { background: #7f1d1d; color: #fca5a5; }
+        .status-saving { background: #78350f; color: #fcd34d; }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Status Koneksi -->
+    <div id="connection-status" class="status-disconnected">● Menghubungkan...</div>
 
     <!-- NAVBAR -->
     <nav class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center z-50 relative">
         <div class="flex items-center space-x-4">
             <div class="flex items-center space-x-3 cursor-pointer" onclick="showLandingPage()">
-                <img src="logopmiidipayuda.png" alt="Logo" class="h-8 w-8 object-contain" onerror="this.style.display='none'">
+                <img src="logo.png" alt="Logo" class="h-8 w-8 object-contain" onerror="this.style.display='none'">
                 <h1 class="text-xl font-bold">PMII Fun Badminton</h1>
             </div>
             <span id="nav-bracket-name" class="text-gray-400 hidden border-l border-gray-600 pl-4"></span>
@@ -148,8 +155,7 @@
 
     <!-- LANDING PAGE -->
     <div id="landing-page" class="flex-1 p-8 overflow-y-auto relative">
-        <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
-        
+        <img src="logo.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
         <div class="max-w-5xl mx-auto relative z-10">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">Turnamen Aktif</h2>
@@ -168,7 +174,6 @@
 
     <!-- BRACKET VIEW PAGE -->
     <div id="bracket-page" class="flex-1 flex hidden h-full">
-        
         <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto z-40">
             <div class="p-4 border-b border-gray-700">
                 <h3 class="text-sm font-bold text-gray-400 mb-3">BRACKET INFORMATION</h3>
@@ -204,7 +209,7 @@
         </div>
 
         <div class="flex-1 bg-gray-900 overflow-auto p-8 relative" id="bracket-canvas">
-            <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
+            <img src="logo.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
             <div id="bracket-container" class="bracket-container min-w-max pt-8 relative z-10"></div>
         </div>
     </div>
@@ -255,18 +260,99 @@
     </div>
 
     <script>
-        const ADMIN_PASSWORD = "admin123"; 
-        let brackets = JSON.parse(localStorage.getItem('brackets')) || [];
-        let currentBracketId = null;
-        let isAdmin = false; 
-        let currentMatch = null; 
+        // === KONFIGURASI FIREBASE ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhijrUPWJv3efN4BZecIDkvhaA5C4J4H8",
+            authDomain: "pmii-funbadminton.firebaseapp.com",
+            databaseURL: "https://pmii-funbadminton-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "pmii-funbadminton",
+            storageBucket: "pmii-funbadminton.firebasestorage.app",
+            messagingSenderId: "1032397843409",
+            appId: "1:1032397843409:web:966ecb7a79d19951298ef0"
+        };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            renderLandingPage();
-            updateAdminUI();
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const bracketsRef = db.ref('brackets');
+
+        const ADMIN_PASSWORD = "admin123";
+        let brackets = [];
+        let currentBracketId = null;
+        let isAdmin = false;
+        let currentMatch = null;
+        let isInitialLoad = true;
+
+        // === STATUS KONEKSI ===
+        function updateConnectionStatus(status) {
+            const el = document.getElementById('connection-status');
+            el.className = '';
+            if (status === 'connected') {
+                el.classList.add('status-connected');
+                el.textContent = '● Terhubung ke Server';
+            } else if (status === 'saving') {
+                el.classList.add('status-saving');
+                el.textContent = '● Menyimpan...';
+            } else {
+                el.classList.add('status-disconnected');
+                el.textContent = '● Terputus dari Server';
+            }
+        }
+
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === true) {
+                updateConnectionStatus('connected');
+            } else {
+                updateConnectionStatus('disconnected');
+            }
         });
 
-        // --- ADMIN LOGIC ---
+        // === REALTIME LISTENER DARI FIREBASE ===
+        bracketsRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                brackets = Object.values(data);
+            } else {
+                brackets = [];
+            }
+
+            // Render ulang tampilan
+            if (currentBracketId) {
+                const stillExists = brackets.find(b => b.id === currentBracketId);
+                if (stillExists) {
+                    renderBracketPage();
+                } else {
+                    showLandingPage();
+                }
+            } else {
+                renderLandingPage();
+            }
+
+            if (isInitialLoad) {
+                isInitialLoad = false;
+                console.log("Data awal dimuat dari Firebase:", brackets);
+            }
+        }, (error) => {
+            console.error("Firebase error:", error);
+            alert("Gagal terhubung ke Firebase. Cek Rules database Anda!");
+            updateConnectionStatus('disconnected');
+        });
+
+        // === SIMPAN DATA KE FIREBASE ===
+        async function saveData() {
+            updateConnectionStatus('saving');
+            try {
+                const dataToSave = {};
+                brackets.forEach(b => { dataToSave[b.id] = b; });
+                await bracketsRef.set(dataToSave);
+                updateConnectionStatus('connected');
+            } catch (err) {
+                console.error("Gagal simpan:", err);
+                alert("Gagal menyimpan data ke server!");
+                updateConnectionStatus('disconnected');
+            }
+        }
+
+        // === ADMIN LOGIC ===
         function openLoginModal() {
             document.getElementById('admin-password-input').value = '';
             document.getElementById('login-modal').classList.remove('hidden');
@@ -275,7 +361,7 @@
         function verifyAdminLogin() {
             if (document.getElementById('admin-password-input').value === ADMIN_PASSWORD) {
                 isAdmin = true; closeLoginModal(); updateAdminUI();
-                if (currentBracketId) renderBracketPage(); 
+                if (currentBracketId) renderBracketPage();
             } else { alert("Password salah!"); }
         }
         function logoutAdmin() {
@@ -290,13 +376,13 @@
             document.getElementById('btn-delete-all').classList.toggle('hidden', !isAdmin);
         }
 
-        // --- LANDING PAGE ---
+        // === LANDING PAGE ===
         function renderLandingPage() {
             document.getElementById('landing-page').classList.remove('hidden');
             document.getElementById('bracket-page').classList.add('hidden');
             document.getElementById('nav-bracket-name').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
-            
+
             const list = document.getElementById('bracket-list');
             list.innerHTML = brackets.length === 0 ? '<p class="text-gray-500 col-span-full">Belum ada turnamen.</p>' : '';
 
@@ -309,9 +395,8 @@
                 };
                 card.innerHTML = `
                     ${isAdmin ? `<button onclick="deleteSingleBracket('${b.id}', event)" class="btn-delete-single absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-7 h-7 rounded-full font-bold text-sm flex items-center justify-center opacity-70 hover:opacity-100 transition" title="Hapus Bracket Ini">&times;</button>` : ''}
-                    
                     <h3 class="font-bold text-xl mb-2 text-white pr-6">${b.name}</h3>
-                    <p class="text-sm text-gray-400 mb-3">Peserta: ${b.participants.length} Tim</p>
+                    <p class="text-sm text-gray-400 mb-3">Peserta: ${b.participants ? b.participants.length : 0} Tim</p>
                     <div class="flex justify-between items-center">
                         <span class="text-xs px-2 py-1 rounded font-bold ${b.status === 'In Progress' ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}">${b.status}</span>
                         <span class="text-blue-400 text-sm font-bold">Lihat &rarr;</span>
@@ -320,13 +405,13 @@
             });
         }
 
-        // --- FUNGSI HAPUS BRACKET ---
         function deleteAllBrackets() {
             if (!isAdmin) return;
             if (brackets.length === 0) return alert("Belum ada bracket untuk dihapus.");
             if (!confirm("⚠️ PERINGATAN! Anda akan menghapus SEMUA bracket turnamen.\n\nTindakan ini tidak bisa dibatalkan. Lanjutkan?")) return;
             if (!confirm("Konfirmasi terakhir: Yakin hapus SEMUA bracket?")) return;
-            brackets = []; saveData(); renderLandingPage();
+            brackets = [];
+            saveData();
             alert("Semua bracket telah dihapus.");
         }
 
@@ -337,17 +422,19 @@
             if (!bracket) return;
             if (confirm(`Hapus bracket "${bracket.name}"? Tindakan ini tidak bisa dibatalkan.`)) {
                 brackets = brackets.filter(b => b.id !== id);
-                saveData(); renderLandingPage();
+                saveData();
             }
         }
 
         function createNewBracket() {
             if (!isAdmin) return;
             const newBracket = { id: Date.now().toString(), name: "Turnamen Baru " + (brackets.length + 1), type: "Single Elimination", status: "Pending", participants: [], matches: [] };
-            brackets.push(newBracket); saveData(); openBracket(newBracket.id);
+            brackets.push(newBracket);
+            saveData();
+            openBracket(newBracket.id);
         }
 
-        // --- BRACKET PAGE ---
+        // === BRACKET PAGE ===
         function openBracket(id) {
             currentBracketId = id;
             document.getElementById('landing-page').classList.add('hidden');
@@ -366,26 +453,28 @@
             const inputName = document.getElementById('input-bracket-name');
             inputName.value = bracket.name;
             inputName.disabled = !isAdmin || bracket.status !== 'Pending';
-            
+
             const pList = document.getElementById('participant-list');
             pList.innerHTML = '';
-            bracket.participants.forEach((p, index) => {
-                const pDiv = document.createElement('div');
-                pDiv.className = "flex items-center space-x-2 bg-gray-700 p-1 rounded text-sm border border-gray-600";
-                if (isAdmin && bracket.status === 'Pending') {
-                    pDiv.innerHTML = `<span class="text-gray-400 w-4 text-center text-xs">${index + 1}</span>
-                        <input type="text" value="${p.name}" onchange="editParticipantName('${p.id}', this.value)" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400">
-                        <button onclick="removeParticipant('${p.id}')" class="text-red-400 hover:text-red-300 font-bold px-1">&times;</button>`;
-                } else {
-                    pDiv.innerHTML = `<span class="text-gray-400 w-4 text-center text-xs">${index + 1}</span><span class="flex-1 font-medium px-1">${p.name}</span>`;
-                }
-                pList.appendChild(pDiv);
-            });
-            document.getElementById('participant-count').textContent = bracket.participants.length;
+            if (bracket.participants) {
+                bracket.participants.forEach((p, index) => {
+                    const pDiv = document.createElement('div');
+                    pDiv.className = "flex items-center space-x-2 bg-gray-700 p-1 rounded text-sm border border-gray-600";
+                    if (isAdmin && bracket.status === 'Pending') {
+                        pDiv.innerHTML = `<span class="text-gray-400 w-4 text-center text-xs">${index + 1}</span>
+                            <input type="text" value="${p.name}" onchange="editParticipantName('${p.id}', this.value)" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-400">
+                            <button onclick="removeParticipant('${p.id}')" class="text-red-400 hover:text-red-300 font-bold px-1">&times;</button>`;
+                    } else {
+                        pDiv.innerHTML = `<span class="text-gray-400 w-4 text-center text-xs">${index + 1}</span><span class="flex-1 font-medium px-1">${p.name}</span>`;
+                    }
+                    pList.appendChild(pDiv);
+                });
+            }
+            document.getElementById('participant-count').textContent = bracket.participants ? bracket.participants.length : 0;
             document.getElementById('admin-participant-controls').classList.toggle('hidden', !(isAdmin && bracket.status === 'Pending'));
             document.getElementById('bracket-status').textContent = bracket.status;
-            document.getElementById('btn-start-tournament').classList.toggle('hidden', !(isAdmin && bracket.status === 'Pending' && bracket.participants.length >= 2));
-            
+            document.getElementById('btn-start-tournament').classList.toggle('hidden', !(isAdmin && bracket.status === 'Pending' && bracket.participants && bracket.participants.length >= 2));
+
             renderBracketVisual(bracket);
         }
 
@@ -395,6 +484,8 @@
             const targetCount = parseInt(document.getElementById('input-participant-count').value) || 0;
             if (targetCount < 2 || targetCount > 64) return alert("Jumlah peserta 2-64.");
 
+            if (!bracket.participants) bracket.participants = [];
+
             if (targetCount < bracket.participants.length) {
                 bracket.participants = bracket.participants.slice(0, targetCount);
             } else if (targetCount > bracket.participants.length) {
@@ -402,7 +493,7 @@
                     bracket.participants.push({ id: 'p-' + Date.now() + '-' + i, name: `Team ${i + 1}` });
                 }
             }
-            saveData(); renderBracketPage();
+            saveData();
         }
 
         function editParticipantName(pId, newName) {
@@ -417,7 +508,7 @@
             if (bracket.status === 'Pending') {
                 bracket.participants = bracket.participants.filter(p => p.id !== pId);
                 document.getElementById('input-participant-count').value = bracket.participants.length;
-                saveData(); renderBracketPage();
+                saveData();
             }
         }
 
@@ -425,71 +516,57 @@
             const bracket = brackets.find(b => b.id === currentBracketId);
             if (bracket && isAdmin && bracket.status === 'Pending') {
                 bracket.name = newName.trim() || "Turnamen Tanpa Nama";
-                saveData(); document.getElementById('nav-bracket-name').textContent = bracket.name;
+                saveData();
+                document.getElementById('nav-bracket-name').textContent = bracket.name;
             }
         }
 
-        // --- TOURNAMENT LOGIC (GENERATE FIXED BRACKET) ---
+        // === TOURNAMENT LOGIC ===
         function startTournament() {
             const bracket = brackets.find(b => b.id === currentBracketId);
             if (bracket.participants.length < 2) return alert("Minimal 2 peserta!");
             bracket.status = "In Progress";
             generateFixedBracket(bracket);
-            saveData(); renderBracketPage();
+            saveData();
         }
 
-        // Fungsi Utama: Membuat struktur bracket PATEN di awal
         function generateFixedBracket(bracket) {
             let participants = [...bracket.participants];
-            participants.sort(() => Math.random() - 0.5); // Acak posisi
+            participants.sort(() => Math.random() - 0.5);
 
-            // Tentukan jumlah slot (Power of 2)
             let totalSlots = Math.pow(2, Math.ceil(Math.log2(participants.length)));
-            
-            // Tambahkan BYE jika perlu
             while (participants.length < totalSlots) {
                 participants.push({ id: 'bye-' + Date.now() + Math.random(), name: 'BYE' });
             }
 
-            // Hitung total ronde
             const totalRounds = Math.log2(totalSlots);
             let allMatches = [];
             let matchIdCounter = 1;
 
-            // RONDE 1: Isi dengan peserta
-            let round1Matches = [];
             for (let i = 0; i < participants.length; i += 2) {
-                round1Matches.push({
-                    id: `m-${matchIdCounter++}`,
-                    round: 1,
-                    team1: participants[i],
-                    team2: participants[i+1],
+                allMatches.push({
+                    id: `m-${matchIdCounter++}`, round: 1,
+                    team1: participants[i], team2: participants[i+1],
                     score1: null, score2: null, winner: null
                 });
             }
-            allMatches.push(...round1Matches);
 
-            // RONDE SELANJUTNYA: Buat slot kosong (TBD)
             for (let r = 2; r <= totalRounds; r++) {
                 const matchesInRound = totalSlots / Math.pow(2, r);
                 for (let i = 0; i < matchesInRound; i++) {
                     allMatches.push({
-                        id: `m-${matchIdCounter++}`,
-                        round: r,
-                        team1: null, team2: null,
-                        score1: null, score2: null, winner: null
+                        id: `m-${matchIdCounter++}`, round: r,
+                        team1: null, team2: null, score1: null, score2: null, winner: null
                     });
                 }
             }
 
             bracket.matches = allMatches;
             bracket.totalRounds = totalRounds;
-
-            // Proses BYE langsung agar tidak ada match kosong di Ronde 1
             processByesFixed(bracket);
         }
 
-        // --- RENDER BRACKET VISUAL ---
+        // === RENDER BRACKET VISUAL ===
         function renderBracketVisual(bracket) {
             const container = document.getElementById('bracket-container');
             container.innerHTML = '';
@@ -504,7 +581,7 @@
             for (let r = 1; r <= totalRounds; r++) {
                 const roundDiv = document.createElement('div');
                 roundDiv.className = "bracket-column";
-                if (r === totalRounds) roundDiv.classList.add('single-match'); // Final tidak perlu kurung siku
+                if (r === totalRounds) roundDiv.classList.add('single-match');
 
                 const header = document.createElement('div');
                 header.className = "absolute -top-8 left-0 right-0 text-center text-xs text-gray-500 font-bold tracking-wider";
@@ -513,14 +590,11 @@
 
                 let matchesInRound = bracket.matches.filter(m => m.round === r);
 
-                // Susun match menjadi pasangan
                 for (let i = 0; i < matchesInRound.length; i += 2) {
                     const pairDiv = document.createElement('div');
                     pairDiv.className = "match-pair";
-
                     if (matchesInRound[i]) pairDiv.appendChild(createMatchBox(matchesInRound[i]));
                     if (matchesInRound[i+1]) pairDiv.appendChild(createMatchBox(matchesInRound[i+1]));
-
                     roundDiv.appendChild(pairDiv);
                 }
                 container.appendChild(roundDiv);
@@ -530,7 +604,7 @@
         function createMatchBox(match) {
             const matchDiv = document.createElement('div');
             matchDiv.className = "match-box";
-            
+
             const t1Class = match.winner === match.team1?.id ? "winner-slot" : "text-gray-300";
             const t2Class = match.winner === match.team2?.id ? "winner-slot" : "text-gray-300";
 
@@ -539,7 +613,6 @@
             const score1 = match.score1 !== null ? match.score1 : '-';
             const score2 = match.score2 !== null ? match.score2 : '-';
 
-            // Hanya admin yang bisa klik, dan hanya jika match belum selesai & bukan BYE
             const canClick = isAdmin && !match.winner && match.team1 && match.team2 && match.team1.name !== 'BYE' && match.team2.name !== 'BYE';
 
             matchDiv.innerHTML = `
@@ -556,10 +629,8 @@
             return matchDiv;
         }
 
-        // Proses BYE untuk bracket paten
         function processByesFixed(bracket) {
             let changed = false;
-            // Loop melalui semua match di ronde 1
             bracket.matches.filter(m => m.round === 1).forEach(match => {
                 if (match.team1?.name === 'BYE' && !match.winner && match.team2) {
                     match.winner = match.team2.id; match.score1 = 0; match.score2 = 1; changed = true;
@@ -567,15 +638,14 @@
                     match.winner = match.team1.id; match.score1 = 1; match.score2 = 0; changed = true;
                 }
             });
-            // Majukan pemenang BYE
             if (changed) {
                 bracket.matches.forEach(m => { if (m.winner) advanceWinnerFixed(m); });
             }
         }
 
-        // --- SCORE MODAL LOGIC ---
+        // === SCORE MODAL LOGIC ===
         function openScoreModal(matchId) {
-            if (!isAdmin) return; 
+            if (!isAdmin) return;
             const bracket = brackets.find(b => b.id === currentBracketId);
             const match = bracket.matches.find(m => m.id === matchId);
             if (!match || match.winner) return alert("Pertandingan ini sudah selesai!");
@@ -604,34 +674,32 @@
             currentMatch.winner = s1 > s2 ? currentMatch.team1.id : currentMatch.team2.id;
 
             advanceWinnerFixed(currentMatch);
-            saveData(); closeModal(); renderBracketPage();
+            saveData();
+            closeModal();
         }
 
-        // Fungsi memajukan pemenang ke slot yang sudah disediakan (Fixed Bracket)
         function advanceWinnerFixed(match) {
             const bracket = brackets.find(b => b.id === currentBracketId);
             const nextRound = match.round + 1;
-            
-            // Cari match di ronde berikutnya yang masih kosong (TBD)
-            let nextMatch = bracket.matches.find(m => m.round === nextRound && (m.team1 === null || m.team2 === null));
 
-            if (!nextMatch) return false; // Jika tidak ada ronde berikutnya (sudah final)
+            let nextMatch = bracket.matches.find(m => m.round === nextRound && (m.team1 === null || m.team2 === null));
+            if (!nextMatch) return false;
 
             const winnerTeam = match.winner === match.team1.id ? match.team1 : match.team2;
-            
-            // Cegah duplikasi
             if (nextMatch.team1?.id === winnerTeam.id || nextMatch.team2?.id === winnerTeam.id) return false;
 
-            // Isi slot yang kosong
             if (!nextMatch.team1) nextMatch.team1 = winnerTeam;
             else if (!nextMatch.team2) nextMatch.team2 = winnerTeam;
-            
             return true;
         }
 
-        // --- UTILS ---
-        function saveData() { localStorage.setItem('brackets', JSON.stringify(brackets)); }
+        // === UTILS ===
         function showLandingPage() { currentBracketId = null; renderLandingPage(); }
+
+        // === INIT ===
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAdminUI();
+        });
     </script>
 </body>
-</html> 
+</html>
