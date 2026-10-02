@@ -14,26 +14,33 @@
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #777; }
 
+        /* Background Logo Besar */
         .bg-logo-overlay {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 60vh;
-            height: 60vh;
+            width: 70vh;
+            height: 70vh;
             opacity: 0.5;
             pointer-events: none;
             z-index: 0;
             object-fit: contain;
             user-select: none;
         }
+        @media (max-width: 768px) {
+            .bg-logo-overlay {
+                width: 90vw;
+                height: 90vw;
+            }
+        }
 
+        /* Bracket Visual */
         .bracket-container {
             display: flex;
             flex-direction: row;
             padding: 20px;
         }
-
         .bracket-column {
             display: flex;
             flex-direction: column;
@@ -41,7 +48,6 @@
             margin-right: 50px;
             position: relative;
         }
-
         .match-pair {
             display: flex;
             flex-direction: column;
@@ -49,7 +55,6 @@
             position: relative;
             margin: 10px 0;
         }
-
         .match-pair::after {
             content: '';
             position: absolute;
@@ -62,7 +67,6 @@
             border-bottom: 2px solid #555;
             border-right: 2px solid #555;
         }
-
         .match-pair .match-box::after {
             content: '';
             position: absolute;
@@ -72,7 +76,6 @@
             height: 2px;
             background-color: #555;
         }
-
         .bracket-column:not(:last-child)::after {
             content: '';
             position: absolute;
@@ -82,7 +85,6 @@
             height: 2px;
             background-color: #555;
         }
-
         .bracket-column.single-match .match-pair::after { display: none; }
         .bracket-column.single-match .match-box::after { display: none; }
 
@@ -96,7 +98,6 @@
             z-index: 10;
             transition: all 0.2s;
         }
-
         .match-box:hover { border-color: #60a5fa; }
 
         .team-slot {
@@ -106,7 +107,6 @@
             padding: 8px 12px;
             font-size: 14px;
         }
-
         .team-slot:first-child { border-bottom: 1px solid #4b5563; }
 
         .winner-slot {
@@ -129,6 +129,36 @@
         .status-connected { background: #065f46; color: #6ee7b7; }
         .status-disconnected { background: #7f1d1d; color: #fca5a5; }
         .status-saving { background: #78350f; color: #fcd34d; }
+
+        /* Sidebar Mobile (Drawer) */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        @media (max-width: 768px) {
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 300px;
+                transform: translateX(-100%);
+                z-index: 60;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+            #sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 55;
+                display: none;
+            }
+            #sidebar-overlay.show {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
@@ -137,44 +167,57 @@
     <div id="connection-status" class="status-disconnected">● Menghubungkan...</div>
 
     <!-- NAVBAR -->
-    <nav class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center z-50 relative">
-        <div class="flex items-center space-x-4">
-            <div class="flex items-center space-x-3 cursor-pointer" onclick="showLandingPage()">
+    <nav class="bg-gray-800 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center z-50 relative">
+        <div class="flex items-center space-x-3">
+            <!-- Tombol Hamburger (Hanya di HP) -->
+            <button id="btn-hamburger" onclick="toggleSidebar()" class="md:hidden bg-gray-700 hover:bg-gray-600 p-2 rounded text-xl leading-none">☰</button>
+            
+            <div class="flex items-center space-x-2 md:space-x-3 cursor-pointer" onclick="showLandingPage()">
                 <img src="logopmiidipayuda.png" alt="Logo" class="h-8 w-8 object-contain" onerror="this.style.display='none'">
-                <h1 class="text-xl font-bold">PMII Fun Badminton</h1>
+                <h1 class="text-base md:text-xl font-bold leading-tight">PMII Fun<br class="md:hidden"> Badminton</h1>
             </div>
-            <span id="nav-bracket-name" class="text-gray-400 hidden border-l border-gray-600 pl-4"></span>
+            <span id="nav-bracket-name" class="text-gray-400 hidden border-l border-gray-600 pl-3 md:pl-4 text-sm md:text-base truncate max-w-[150px]"></span>
         </div>
-        <div class="flex items-center space-x-4">
-            <button id="btn-login" onclick="openLoginModal()" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded text-sm font-bold">Login Admin</button>
-            <span id="admin-status" class="text-sm text-green-400 font-bold hidden">Admin Mode</span>
-            <button id="btn-logout" onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 px-4 py-1 rounded text-sm hidden">Logout</button>
-            <button id="btn-back" onclick="showLandingPage()" class="bg-gray-600 hover:bg-gray-700 px-4 py-1 rounded text-sm hidden">Kembali ke Home</button>
+        <div class="flex items-center space-x-2 md:space-x-4">
+            <button id="btn-login" onclick="openLoginModal()" class="bg-blue-600 hover:bg-blue-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm font-bold">Login Admin</button>
+            <span id="admin-status" class="text-xs md:text-sm text-green-400 font-bold hidden">Admin Mode</span>
+            <button id="btn-logout" onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm hidden">Logout</button>
+            <button id="btn-back" onclick="showLandingPage()" class="bg-gray-600 hover:bg-gray-700 px-3 md:px-4 py-1 rounded text-xs md:text-sm hidden">Kembali</button>
         </div>
     </nav>
 
     <!-- LANDING PAGE -->
-    <div id="landing-page" class="flex-1 p-8 overflow-y-auto relative">
+    <div id="landing-page" class="flex-1 p-4 md:p-8 overflow-y-auto relative">
         <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
         <div class="max-w-5xl mx-auto relative z-10">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">Turnamen Aktif</h2>
-                <div class="flex space-x-3">
-                    <button id="btn-delete-all" onclick="deleteAllBrackets()" class="bg-red-700 hover:bg-red-800 px-4 py-2 rounded font-bold hidden text-sm">
-                        🗑️ Hapus Semua Bracket
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-xl md:text-2xl font-bold">Turnamen Aktif</h2>
+                <div class="flex flex-wrap gap-2 md:gap-3">
+                    <button id="btn-delete-all" onclick="deleteAllBrackets()" class="bg-red-700 hover:bg-red-800 px-3 md:px-4 py-2 rounded font-bold hidden text-xs md:text-sm">
+                        🗑️ Hapus Semua
                     </button>
-                    <button id="btn-add-bracket" onclick="createNewBracket()" class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded font-bold hidden">
+                    <button id="btn-add-bracket" onclick="createNewBracket()" class="bg-green-600 hover:bg-green-700 px-4 md:px-6 py-2 rounded font-bold hidden text-sm">
                         + Buat Bracket Baru
                     </button>
                 </div>
             </div>
-            <div id="bracket-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            <div id="bracket-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"></div>
         </div>
     </div>
 
     <!-- BRACKET VIEW PAGE -->
-    <div id="bracket-page" class="flex-1 flex hidden h-full">
-        <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto z-40">
+    <div id="bracket-page" class="flex-1 flex hidden h-full overflow-hidden">
+
+        <!-- Overlay untuk menutup sidebar di HP -->
+        <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <!-- SIDEBAR (Jadi Drawer di HP) -->
+        <div id="sidebar" class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto z-40 md:z-40">
+            <!-- Tombol Close Sidebar (Hanya di HP) -->
+            <div class="md:hidden flex justify-end p-2 border-b border-gray-700">
+                <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-2xl px-3">&times;</button>
+            </div>
+
             <div class="p-4 border-b border-gray-700">
                 <h3 class="text-sm font-bold text-gray-400 mb-3">BRACKET INFORMATION</h3>
                 <div class="space-y-3">
@@ -208,15 +251,16 @@
             </div>
         </div>
 
-        <div class="flex-1 bg-gray-900 overflow-auto p-8 relative" id="bracket-canvas">
+        <!-- AREA BRACKET UTAMA -->
+        <div class="flex-1 bg-gray-900 overflow-auto p-4 md:p-8 relative" id="bracket-canvas">
             <img src="logopmii.png" alt="" class="bg-logo-overlay" onerror="this.style.display='none'">
             <div id="bracket-container" class="bracket-container min-w-max pt-8 relative z-10"></div>
         </div>
     </div>
 
     <!-- MODAL LOGIN ADMIN -->
-    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50">
-        <div class="bg-gray-800 rounded-lg shadow-xl w-80 overflow-hidden border border-gray-600">
+    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-[70] p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-80 max-w-full overflow-hidden border border-gray-600">
             <div class="bg-gray-700 px-4 py-3 flex justify-between items-center">
                 <h3 class="font-bold text-lg">Login Admin</h3>
                 <button onclick="closeLoginModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
@@ -229,8 +273,8 @@
     </div>
 
     <!-- MODAL REPORT SCORES -->
-    <div id="score-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
-        <div class="bg-gray-800 rounded-lg shadow-xl w-96 overflow-hidden border border-gray-600">
+    <div id="score-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-[70] p-4">
+        <div class="bg-gray-800 rounded-lg shadow-xl w-96 max-w-full overflow-hidden border border-gray-600">
             <div class="bg-gray-700 px-4 py-2 flex justify-between items-center">
                 <h3 class="font-bold">Report Scores</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-white">&times;</button>
@@ -280,7 +324,23 @@
         let currentBracketId = null;
         let isAdmin = false;
         let currentMatch = null;
-        let isInitialLoad = true;
+
+        // === SIDEBAR TOGGLE (Mobile) ===
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+        // Tutup sidebar otomatis saat pindah ke Home
+        function closeSidebarIfMobile() {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebar-overlay');
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            }
+        }
 
         // === STATUS KONEKSI ===
         function updateConnectionStatus(status) {
@@ -309,13 +369,8 @@
         // === REALTIME LISTENER DARI FIREBASE ===
         bracketsRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            if (data) {
-                brackets = Object.values(data);
-            } else {
-                brackets = [];
-            }
+            brackets = data ? Object.values(data) : [];
 
-            // Render ulang tampilan
             if (currentBracketId) {
                 const stillExists = brackets.find(b => b.id === currentBracketId);
                 if (stillExists) {
@@ -325,11 +380,6 @@
                 }
             } else {
                 renderLandingPage();
-            }
-
-            if (isInitialLoad) {
-                isInitialLoad = false;
-                console.log("Data awal dimuat dari Firebase:", brackets);
             }
         }, (error) => {
             console.error("Firebase error:", error);
@@ -382,6 +432,7 @@
             document.getElementById('bracket-page').classList.add('hidden');
             document.getElementById('nav-bracket-name').classList.add('hidden');
             document.getElementById('btn-back').classList.add('hidden');
+            closeSidebarIfMobile();
 
             const list = document.getElementById('bracket-list');
             list.innerHTML = brackets.length === 0 ? '<p class="text-gray-500 col-span-full">Belum ada turnamen.</p>' : '';
@@ -694,7 +745,10 @@
         }
 
         // === UTILS ===
-        function showLandingPage() { currentBracketId = null; renderLandingPage(); }
+        function showLandingPage() {
+            currentBracketId = null;
+            renderLandingPage();
+        }
 
         // === INIT ===
         document.addEventListener('DOMContentLoaded', () => {
