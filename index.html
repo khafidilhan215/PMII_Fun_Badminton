@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PMII Fun Badminton</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
     <style>
@@ -14,7 +13,6 @@
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #777; }
 
-        /* Background Logo Besar - FIXED di tengah viewport */
         .bg-logo-overlay {
             position: fixed;
             top: 50%;
@@ -35,142 +33,80 @@
             }
         }
 
-        /* Bracket Visual */
-        .bracket-container {
-            display: flex;
-            flex-direction: row;
-            padding: 20px;
-        }
+        .bracket-container { display: flex; flex-direction: row; padding: 20px; }
         .bracket-column {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-            margin-right: 50px;
-            position: relative;
+            display: flex; flex-direction: column; justify-content: space-around;
+            margin-right: 50px; position: relative;
         }
         .match-pair {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            position: relative;
-            margin: 10px 0;
+            display: flex; flex-direction: column; justify-content: center;
+            position: relative; margin: 10px 0;
         }
         .match-pair::after {
-            content: '';
-            position: absolute;
-            right: -25px;
-            top: 25%;
-            bottom: 25%;
-            width: 2px;
-            background-color: #555;
-            border-top: 2px solid #555;
-            border-bottom: 2px solid #555;
-            border-right: 2px solid #555;
+            content: ''; position: absolute; right: -25px; top: 25%; bottom: 25%;
+            width: 2px; background-color: #555;
+            border-top: 2px solid #555; border-bottom: 2px solid #555; border-right: 2px solid #555;
         }
         .match-pair .match-box::after {
-            content: '';
-            position: absolute;
-            right: -25px;
-            top: 50%;
-            width: 25px;
-            height: 2px;
-            background-color: #555;
+            content: ''; position: absolute; right: -25px; top: 50%;
+            width: 25px; height: 2px; background-color: #555;
         }
         .bracket-column:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            right: -25px;
-            top: 50%;
-            width: 25px;
-            height: 2px;
-            background-color: #555;
+            content: ''; position: absolute; right: -25px; top: 50%;
+            width: 25px; height: 2px; background-color: #555;
         }
         .bracket-column.single-match .match-pair::after { display: none; }
         .bracket-column.single-match .match-box::after { display: none; }
 
         .match-box {
-            background: #374151;
-            border: 1px solid #4b5563;
-            border-radius: 4px;
-            width: 220px;
-            margin: 6px 0;
-            position: relative;
-            z-index: 10;
+            background: #374151; border: 1px solid #4b5563; border-radius: 4px;
+            width: 220px; margin: 6px 0; position: relative; z-index: 10;
             transition: all 0.2s;
         }
         .match-box:hover { border-color: #60a5fa; }
-
         .team-slot {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            font-size: 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; font-size: 14px;
         }
         .team-slot:first-child { border-bottom: 1px solid #4b5563; }
-
         .winner-slot {
             background-color: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            font-weight: bold;
+            color: #34d399; font-weight: bold;
         }
 
-        /* Status Indicator */
         #connection-status {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            z-index: 100;
-            transition: all 0.3s;
+            position: fixed; bottom: 10px; left: 10px;
+            padding: 4px 10px; border-radius: 4px; font-size: 11px;
+            z-index: 100; transition: all 0.3s;
         }
         .status-connected { background: #065f46; color: #6ee7b7; }
         .status-disconnected { background: #7f1d1d; color: #fca5a5; }
         .status-saving { background: #78350f; color: #fcd34d; }
 
-        /* Sidebar Mobile (Drawer) */
-        #sidebar {
-            transition: transform 0.3s ease-in-out;
-        }
+        #sidebar { transition: transform 0.3s ease-in-out; }
         @media (max-width: 768px) {
             #sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                height: 100vh;
-                width: 300px;
-                transform: translateX(-100%);
-                z-index: 60;
+                position: fixed; top: 0; left: 0; height: 100vh; width: 300px;
+                transform: translateX(-100%); z-index: 60;
                 box-shadow: 4px 0 20px rgba(0,0,0,0.5);
             }
-            #sidebar.open {
-                transform: translateX(0);
-            }
+            #sidebar.open { transform: translateX(0); }
             #sidebar-overlay {
-                position: fixed;
-                inset: 0;
-                background: rgba(0,0,0,0.7);
-                z-index: 55;
-                display: none;
+                position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+                z-index: 55; display: none;
             }
-            #sidebar-overlay.show {
-                display: block;
-            }
+            #sidebar-overlay.show { display: block; }
         }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col overflow-hidden">
 
-    <!-- Status Koneksi -->
     <div id="connection-status" class="status-disconnected">● Menghubungkan...</div>
 
     <!-- NAVBAR -->
     <nav class="bg-gray-800 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center z-50 relative">
         <div class="flex items-center space-x-3">
             <button id="btn-hamburger" onclick="toggleSidebar()" class="md:hidden bg-gray-700 hover:bg-gray-600 p-2 rounded text-xl leading-none">☰</button>
-            
             <div class="flex items-center space-x-2 md:space-x-3 cursor-pointer" onclick="showLandingPage()">
                 <img src="logopmiidipayuda.png" alt="Logo" class="h-8 w-8 object-contain" onerror="this.style.display='none'">
                 <h1 class="text-base md:text-xl font-bold leading-tight">PMII Fun<br class="md:hidden"> Badminton</h1>
@@ -185,34 +121,25 @@
         </div>
     </nav>
 
-    <!-- LANDING PAGE -->
     <div id="landing-page" class="flex-1 p-4 md:p-8 overflow-y-auto relative">
         <div class="max-w-5xl mx-auto relative z-10">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h2 class="text-xl md:text-2xl font-bold">Turnamen Aktif</h2>
                 <div class="flex flex-wrap gap-2 md:gap-3">
-                    <button id="btn-delete-all" onclick="deleteAllBrackets()" class="bg-red-700 hover:bg-red-800 px-3 md:px-4 py-2 rounded font-bold hidden text-xs md:text-sm">
-                        🗑️ Hapus Semua
-                    </button>
-                    <button id="btn-add-bracket" onclick="createNewBracket()" class="bg-green-600 hover:bg-green-700 px-4 md:px-6 py-2 rounded font-bold hidden text-sm">
-                        + Buat Bracket Baru
-                    </button>
+                    <button id="btn-delete-all" onclick="deleteAllBrackets()" class="bg-red-700 hover:bg-red-800 px-3 md:px-4 py-2 rounded font-bold hidden text-xs md:text-sm">🗑️ Hapus Semua</button>
+                    <button id="btn-add-bracket" onclick="createNewBracket()" class="bg-green-600 hover:bg-green-700 px-4 md:px-6 py-2 rounded font-bold hidden text-sm">+ Buat Bracket Baru</button>
                 </div>
             </div>
             <div id="bracket-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"></div>
         </div>
     </div>
 
-    <!-- BRACKET VIEW PAGE -->
     <div id="bracket-page" class="flex-1 flex hidden h-full overflow-hidden">
-
         <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
-
         <div id="sidebar" class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto z-40 md:z-40">
             <div class="md:hidden flex justify-end p-2 border-b border-gray-700">
                 <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-2xl px-3">&times;</button>
             </div>
-
             <div class="p-4 border-b border-gray-700">
                 <h3 class="text-sm font-bold text-gray-400 mb-3">BRACKET INFORMATION</h3>
                 <div class="space-y-3">
@@ -222,14 +149,12 @@
                     </div>
                 </div>
             </div>
-
             <div class="p-4 flex-1">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-sm font-bold text-gray-400">PARTICIPANTS</h3>
                     <span id="participant-count" class="text-xs bg-gray-700 px-2 py-1 rounded">0</span>
                 </div>
                 <div id="participant-list" class="space-y-2 mb-4"></div>
-
                 <div id="admin-participant-controls" class="hidden mt-4 p-3 bg-gray-900 rounded border border-gray-700">
                     <label class="block text-xs text-gray-400 mb-1">Jumlah Peserta (Auto Generate)</label>
                     <div class="flex space-x-2">
@@ -239,19 +164,16 @@
                     <p class="text-[10px] text-gray-500 mt-2">*Klik nama tim di daftar atas untuk mengeditnya.</p>
                 </div>
             </div>
-
             <div class="p-4 border-t border-gray-700 bg-gray-800">
                 <div id="bracket-status" class="text-center text-sm font-bold text-yellow-400 mb-2">Pending</div>
                 <button id="btn-start-tournament" onclick="startTournament()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm hidden">START TOURNAMENT</button>
             </div>
         </div>
-
         <div class="flex-1 bg-gray-900 overflow-auto p-4 md:p-8 relative" id="bracket-canvas">
             <div id="bracket-container" class="bracket-container min-w-max pt-8 relative z-10"></div>
         </div>
     </div>
 
-    <!-- MODAL LOGIN ADMIN -->
     <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-[70] p-4">
         <div class="bg-gray-800 rounded-lg shadow-xl w-80 max-w-full overflow-hidden border border-gray-600">
             <div class="bg-gray-700 px-4 py-3 flex justify-between items-center">
@@ -265,7 +187,6 @@
         </div>
     </div>
 
-    <!-- MODAL REPORT SCORES -->
     <div id="score-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-[70] p-4">
         <div class="bg-gray-800 rounded-lg shadow-xl w-96 max-w-full overflow-hidden border border-gray-600">
             <div class="bg-gray-700 px-4 py-2 flex justify-between items-center">
@@ -296,7 +217,6 @@
         </div>
     </div>
 
-    <!-- LOGO BACKGROUND GLOBAL (Fixed di tengah layar) -->
     <img id="global-bg-logo" src="logopmii.png" alt="" class="bg-logo-overlay hidden" onerror="this.style.display='none'">
 
     <script>
@@ -321,7 +241,12 @@
         let isAdmin = false;
         let currentMatch = null;
 
-        // === SIDEBAR TOGGLE (Mobile) ===
+        // ============================================================
+        // 🔧 FIX #1: FLAG UNTUK MENCEGAH LISTENER MENIMPA DATA SAAT SAVE
+        // ============================================================
+        let isSaving = false;
+
+        // === SIDEBAR TOGGLE ===
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
@@ -335,13 +260,9 @@
             }
         }
 
-        // === LOGO BACKGROUND CONTROL ===
-        function showGlobalLogo() {
-            document.getElementById('global-bg-logo').classList.remove('hidden');
-        }
-        function hideGlobalLogo() {
-            document.getElementById('global-bg-logo').classList.add('hidden');
-        }
+        // === LOGO BACKGROUND ===
+        function showGlobalLogo() { document.getElementById('global-bg-logo').classList.remove('hidden'); }
+        function hideGlobalLogo() { document.getElementById('global-bg-logo').classList.add('hidden'); }
 
         // === STATUS KONEKSI ===
         function updateConnectionStatus(status) {
@@ -360,17 +281,23 @@
         }
 
         db.ref('.info/connected').on('value', (snap) => {
-            if (snap.val() === true) {
-                updateConnectionStatus('connected');
-            } else {
-                updateConnectionStatus('disconnected');
-            }
+            if (snap.val() === true) updateConnectionStatus('connected');
+            else updateConnectionStatus('disconnected');
         });
 
-        // === REALTIME LISTENER DARI FIREBASE ===
+        // ============================================================
+        // 🔧 FIX #2: LISTENER TIDAK MENIMPA DATA SAAT SEDANG SAVE
+        // ============================================================
         bracketsRef.on('value', (snapshot) => {
+            // Jika sedang save, jangan timpa data lokal
+            if (isSaving) {
+                console.log("⏸ Listener diabaikan karena sedang save data");
+                return;
+            }
+
             const data = snapshot.val();
             brackets = data ? Object.values(data) : [];
+            console.log("📥 Data diterima dari Firebase:", brackets.length, "bracket");
 
             if (currentBracketId) {
                 const stillExists = brackets.find(b => b.id === currentBracketId);
@@ -384,22 +311,29 @@
             }
         }, (error) => {
             console.error("Firebase error:", error);
-            alert("Gagal terhubung ke Firebase. Cek Rules database Anda!");
             updateConnectionStatus('disconnected');
         });
 
-        // === SIMPAN DATA KE FIREBASE ===
+        // ============================================================
+        // 🔧 FIX #3: SAVEDATA YANG BENAR DENGAN FLAG
+        // ============================================================
         async function saveData() {
+            isSaving = true;  // Set flag SEBELUM kirim
             updateConnectionStatus('saving');
             try {
                 const dataToSave = {};
-                brackets.forEach(b => { dataToSave[b.id] = b; });
+                brackets.forEach(b => { dataToSave[b.id] = JSON.parse(JSON.stringify(b)); }); // Deep clone
+                console.log("📤 Mengirim data ke Firebase:", dataToSave);
                 await bracketsRef.set(dataToSave);
                 updateConnectionStatus('connected');
+                console.log("✅ Data berhasil tersimpan");
             } catch (err) {
-                console.error("Gagal simpan:", err);
+                console.error("❌ Gagal simpan:", err);
                 alert("Gagal menyimpan data ke server!");
                 updateConnectionStatus('disconnected');
+            } finally {
+                // Release flag setelah jeda kecil untuk memberi waktu listener settle
+                setTimeout(() => { isSaving = false; }, 500);
             }
         }
 
@@ -447,7 +381,7 @@
                     openBracket(b.id);
                 };
                 card.innerHTML = `
-                    ${isAdmin ? `<button onclick="deleteSingleBracket('${b.id}', event)" class="btn-delete-single absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-7 h-7 rounded-full font-bold text-sm flex items-center justify-center opacity-70 hover:opacity-100 transition" title="Hapus Bracket Ini">&times;</button>` : ''}
+                    ${isAdmin ? `<button onclick="deleteSingleBracket('${b.id}', event)" class="btn-delete-single absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-7 h-7 rounded-full font-bold text-sm flex items-center justify-center opacity-70 hover:opacity-100 transition">&times;</button>` : ''}
                     <h3 class="font-bold text-xl mb-2 text-white pr-6">${b.name}</h3>
                     <p class="text-sm text-gray-400 mb-3">Peserta: ${b.participants ? b.participants.length : 0} Tim</p>
                     <div class="flex justify-between items-center">
@@ -460,12 +394,11 @@
 
         function deleteAllBrackets() {
             if (!isAdmin) return;
-            if (brackets.length === 0) return alert("Belum ada bracket untuk dihapus.");
-            if (!confirm("⚠️ PERINGATAN! Anda akan menghapus SEMUA bracket turnamen.\n\nTindakan ini tidak bisa dibatalkan. Lanjutkan?")) return;
-            if (!confirm("Konfirmasi terakhir: Yakin hapus SEMUA bracket?")) return;
+            if (brackets.length === 0) return alert("Belum ada bracket.");
+            if (!confirm("⚠️ Hapus SEMUA bracket?")) return;
+            if (!confirm("Konfirmasi terakhir?")) return;
             brackets = [];
             saveData();
-            alert("Semua bracket telah dihapus.");
         }
 
         function deleteSingleBracket(id, event) {
@@ -473,7 +406,7 @@
             if (event) event.stopPropagation();
             const bracket = brackets.find(b => b.id === id);
             if (!bracket) return;
-            if (confirm(`Hapus bracket "${bracket.name}"? Tindakan ini tidak bisa dibatalkan.`)) {
+            if (confirm(`Hapus bracket "${bracket.name}"?`)) {
                 brackets = brackets.filter(b => b.id !== id);
                 saveData();
             }
@@ -537,9 +470,7 @@
             if (bracket.status !== 'Pending') return;
             const targetCount = parseInt(document.getElementById('input-participant-count').value) || 0;
             if (targetCount < 2 || targetCount > 64) return alert("Jumlah peserta 2-64.");
-
             if (!bracket.participants) bracket.participants = [];
-
             if (targetCount < bracket.participants.length) {
                 bracket.participants = bracket.participants.slice(0, targetCount);
             } else if (targetCount > bracket.participants.length) {
@@ -718,32 +649,73 @@
             input.value = Math.max(0, (parseInt(input.value) || 0) + amount);
         }
 
+        // ============================================================
+        // 🔧 FIX #4: SUBMIT SCORE DENGAN LOG DETAIL
+        // ============================================================
         function submitScore() {
             if (!currentMatch) return;
             const s1 = parseInt(document.getElementById('modal-team1-score').value) || 0;
             const s2 = parseInt(document.getElementById('modal-team2-score').value) || 0;
             if (s1 === s2) return alert("Skor tidak boleh seri!");
 
-            currentMatch.score1 = s1; currentMatch.score2 = s2;
-            currentMatch.winner = s1 > s2 ? currentMatch.team1.id : currentMatch.team2.id;
+            const matchId = currentMatch.id;
+            const winnerId = s1 > s2 ? currentMatch.team1.id : currentMatch.team2.id;
+            const winnerName = s1 > s2 ? currentMatch.team1.name : currentMatch.team2.name;
 
-            advanceWinnerFixed(currentMatch);
-            saveData();
+            console.log(`🎯 Submit skor untuk match ${matchId}: ${s1} - ${s2}`);
+            console.log(`🏆 Pemenang: ${winnerName} (${winnerId})`);
+
+            // Update skor & winner di currentMatch
+            currentMatch.score1 = s1;
+            currentMatch.score2 = s2;
+            currentMatch.winner = winnerId;
+
+            // Pindahkan pemenang ke ronde berikutnya
+            const advanced = advanceWinnerFixed(currentMatch);
+            console.log(`➡️ Berhasil advance: ${advanced}`);
+
+            // Debug: cetak semua match setelah advance
+            const bracket = brackets.find(b => b.id === currentBracketId);
+            console.log("📋 Status semua match setelah advance:");
+            bracket.matches.forEach(m => {
+                console.log(`  Round ${m.round} - ${m.id}: ${m.team1?.name || 'TBD'} vs ${m.team2?.name || 'TBD'} | Winner: ${m.winner || '-'}`);
+            });
+
+            // Tutup modal dulu
             closeModal();
+
+            // Simpan ke Firebase
+            saveData();
         }
 
         function advanceWinnerFixed(match) {
             const bracket = brackets.find(b => b.id === currentBracketId);
+            if (!bracket) return false;
+
             const nextRound = match.round + 1;
-
-            let nextMatch = bracket.matches.find(m => m.round === nextRound && (m.team1 === null || m.team2 === null));
-            if (!nextMatch) return false;
-
             const winnerTeam = match.winner === match.team1.id ? match.team1 : match.team2;
-            if (nextMatch.team1?.id === winnerTeam.id || nextMatch.team2?.id === winnerTeam.id) return false;
 
-            if (!nextMatch.team1) nextMatch.team1 = winnerTeam;
-            else if (!nextMatch.team2) nextMatch.team2 = winnerTeam;
+            // Cari match di ronde berikutnya yang masih kosong (TBD)
+            let nextMatch = bracket.matches.find(m => m.round === nextRound && (m.team1 === null || m.team2 === null));
+            if (!nextMatch) {
+                console.log(`⚠️ Tidak ada slot kosong di ronde ${nextRound}`);
+                return false;
+            }
+
+            // Cegah duplikasi
+            if (nextMatch.team1?.id === winnerTeam.id || nextMatch.team2?.id === winnerTeam.id) {
+                console.log(`⚠️ ${winnerTeam.name} sudah ada di match ${nextMatch.id}`);
+                return false;
+            }
+
+            // Isi slot kosong
+            if (!nextMatch.team1) {
+                nextMatch.team1 = { ...winnerTeam };
+                console.log(`✅ ${winnerTeam.name} → Round ${nextRound} slot 1 (match ${nextMatch.id})`);
+            } else if (!nextMatch.team2) {
+                nextMatch.team2 = { ...winnerTeam };
+                console.log(`✅ ${winnerTeam.name} → Round ${nextRound} slot 2 (match ${nextMatch.id})`);
+            }
             return true;
         }
 
@@ -754,7 +726,6 @@
             renderLandingPage();
         }
 
-        // === INIT ===
         document.addEventListener('DOMContentLoaded', () => {
             updateAdminUI();
         });
